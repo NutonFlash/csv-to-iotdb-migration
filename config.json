@@ -1,0 +1,170 @@
+{
+  "csvSettings": [
+    {
+      "timestampColumn": {
+        "name": "timestamp",
+        "type": "TIME",
+        "timeFormatType": "UNIX"
+      },
+      "columns": [
+        {
+          "name": "createdAt",
+          "type": "TIME",
+          "joinKey": "createdTime",
+          "timeFormatType": "CUSTOM",
+          "customTimeFormat": "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        },
+        {
+          "name": "tag",
+          "type": "STRING",
+          "joinKey": "sensorTag"
+        },
+        {
+          "name": "value",
+          "type": "DOUBLE",
+          "joinKey": "sensorValue"
+        }
+      ],
+      "filePaths": [
+        "./tests/csv_unix_timestamp_valid.csv",
+        "./tests/csv_invalid_timestamp.csv",
+        "./tests/csv_extra_columns.csv",
+        "./tests/csv_missing_columns.csv",
+        "./tests/csv_null_values.csv",
+        "./tests/csv_inconsistent_columns.csv",
+        "./tests/csv_non_numeric_values.csv",
+        "./tests/csv_large_values.csv",
+        "./tests/csv_duplicate_timestamps.csv",
+        "./tests/csv_unexpected_nulls.csv"
+      ],
+      "delimiter": ",",
+      "escapeCharacter": "\""
+    },
+    {
+      "timestampColumn": {
+        "name": "timestamp",
+        "type": "TIME",
+        "timeFormatType": "CUSTOM",
+        "customTimeFormat": "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+      },
+      "columns": [
+        {
+          "name": "createdAt",
+          "type": "TIME",
+          "joinKey": "createdTime",
+          "timeFormatType": "CUSTOM",
+          "customTimeFormat": "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        },
+        {
+          "name": "tag",
+          "type": "STRING",
+          "joinKey": "sensorTag"
+        },
+        {
+          "name": "value",
+          "type": "DOUBLE",
+          "joinKey": "sensorValue"
+        }
+      ],
+      "filePaths": [
+        "./tests/csv_iso_timestamp_valid.csv",
+        "./tests/csv_with_comments.csv",
+        "./tests/csv_with_header_mismatch.csv",
+        "./tests/csv_with_empty_fields.csv",
+        "./tests/csv_non_standard_headers.csv",
+        "./tests/csv_with_duplicate_headers.csv"
+      ],
+      "delimiter": ",",
+      "escapeCharacter": "\""
+    },
+    {
+      "timestampColumn": {
+        "name": "timestamp",
+        "type": "TIME",
+        "timeFormatType": "UNIX"
+      },
+      "columns": [
+        {
+          "name": "createdAt",
+          "type": "TIME",
+          "joinKey": "createdTime",
+          "timeFormatType": "CUSTOM",
+          "customTimeFormat": "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        },
+        {
+          "name": "tag",
+          "type": "STRING",
+          "joinKey": "sensorTag"
+        },
+        {
+          "name": "value",
+          "type": "DOUBLE",
+          "joinKey": "sensorValue"
+        }
+      ],
+      "filePaths": [
+        "./tests/csv_missing_timestamp.csv",
+        "./tests/csv_different_delimiters.csv",
+        "./tests/csv_quoted_fields.csv",
+        "./tests/csv_special_characters.csv",
+        "./tests/csv_mixed_time_formats.csv",
+        "./tests/csv_empty_file.csv",
+        "./tests/csv_only_headers.csv",
+        "./tests/csv_large_batch.csv",
+        "./tests/csv_non_utf8_encoding.csv",
+        "./tests/csv_multiline_fields.csv",
+        "./tests/csv_invalid_numeric_types.csv",
+        "./tests/csv_unexpected_delimiters.csv",
+        "./tests/csv_inconsistent_time_formats.csv",
+        "./tests/csv_large_string_fields.csv"
+      ],
+      "delimiter": ",",
+      "escapeCharacter": "\""
+    }
+  ],
+  "iotdbSettings": {
+    "connectionPoolSize": 10,
+    "maxRetriesCount": 5,
+    "retryIntervalInMs": 1500,
+    "connections": [
+      {
+        "host": "192.168.0.202",
+        "port": 6667,
+        "username": "root",
+        "password": "root"
+      }
+    ],
+    "devices": [
+      {
+        "deviceId": "root.device1",
+        "measurements": [
+          {
+            "name": "sensorTag",
+            "dataType": "TEXT",
+            "joinKey": "sensorTag",
+            "encoding": "PLAIN",
+            "compression": "SNAPPY"
+          },
+          {
+            "name": "sensorValue",
+            "dataType": "DOUBLE",
+            "joinKey": "sensorValue",
+            "encoding": "RLE",
+            "compression": "SNAPPY"
+          },
+          {
+            "name": "createdTime",
+            "dataType": "INT64",
+            "joinKey": "createdTime",
+            "encoding": "PLAIN",
+            "compression": "SNAPPY"
+          }
+        ]
+      }
+    ]
+  },
+  "migrationSettings": {
+    "threadsNumber": 1,
+    "batchSize": 50000
+  }
+}
