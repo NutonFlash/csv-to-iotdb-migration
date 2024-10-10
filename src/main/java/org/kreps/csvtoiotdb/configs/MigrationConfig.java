@@ -9,6 +9,7 @@ public class MigrationConfig {
     private List<CsvSettings> csvSettings;
     private IoTDBSettings iotdbSettings;
     private MigrationSettings migrationSettings;
+    private H2Config h2Config;
 
     public MigrationConfig() {
     }
@@ -44,4 +45,11 @@ public class MigrationConfig {
         this.csvSettings = csvSettings;
     }
 
+    public H2Config getH2Config() {
+        return h2Config;
+    }
+
+    public void setH2Config(H2Config h2Config) {
+        this.h2Config = h2Config;
+    }
 }

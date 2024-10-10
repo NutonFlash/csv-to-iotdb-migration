@@ -5,45 +5,85 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.kreps.csvtoiotdb.configs.MigrationConfig;
 import org.kreps.csvtoiotdb.configs.csv.CsvSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * The main entry point for the CSV to IoTDB migration tool.
- */
 public class Main {
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
     public static void main(String[] args) throws Exception {
-        // Load configurations using ConfigLoader
-        ConfigLoader configLoader = new ConfigLoader("./config.json");
-        MigrationConfig config = configLoader.getConfig();
+        try {
+            ConfigLoader configLoader = new ConfigLoader("./config.json");
+            MigrationConfig config = configLoader.getConfig();
 
-        IoTDBClientManager clientManager = new IoTDBClientManager(config.getIotdbSettings());
+            // Validate configuration
+            ConfigValidator.validateConfig(config);
+            logger.info("Configuration validation passed.");
 
-        IoTDBSchemaValidator schemaValidator = new IoTDBSchemaValidator(clientManager);
-        schemaValidator.validateAndCreateTimeseriesForDevices(config.getIotdbSettings().getDevices());
+            // Initialize H2 database with CSV settings
+            H2DatabaseManager.initialize(config.getH2Config());
 
-        ThreadManager threadManager = new ThreadManager(config.getMigrationSettings().getThreadsNumber());
+            MigrationInitializer initializer = new MigrationInitializer();
+            initializer.initialize(config.getCsvSettings());
+            logger.info("Migration state initialized.");
 
-        Converter converter = new Converter(config.getIotdbSettings().getDevices());
+            // Initialize other components
+            IoTDBClientManager clientManager = new IoTDBClientManager(config.getIotdbSettings());
+            IoTDBSchemaValidator schemaValidator = new IoTDBSchemaValidator(clientManager);
+            schemaValidator.validateAndCreateTimeseriesForDevices(config.getIotdbSettings().getDevices());
+            logger.info("Schema validation completed.");
 
-        IoTDBWriter writer = new IoTDBWriter(
-                clientManager,
-                config.getIotdbSettings().getMaxRetriesCount(),
-                config.getIotdbSettings().getRetryIntervalInMs());
+            ThreadManager threadManager = new ThreadManager(config.getMigrationSettings().getThreadsNumber());
 
-        BlockingQueue<CsvSettings> csvSettingsQueue = new LinkedBlockingQueue<>(config.getCsvSettings());
+            Converter converter = new Converter(config.getIotdbSettings(), config.getCsvSettings());
 
-        // Submit migration tasks
-        for (int i = 0; i < config.getMigrationSettings().getThreadsNumber(); i++) {
-            threadManager.submitTask(
-                    new MigrateTask(csvSettingsQueue, config.getIotdbSettings().getDevices(), converter, writer,
-                            config.getMigrationSettings().getBatchSize()));
+            IoTDBWriter writer = new IoTDBWriter(
+                    clientManager,
+                    schemaValidator,
+                    config.getIotdbSettings().getDevices(),
+                    config.getIotdbSettings().getMaxRetries(),
+                    config.getIotdbSettings().getRetryInterval(),
+                    config.getIotdbSettings().getMaxBackoffTime());
+            logger.info("IoTDBWriter initialized.");
+
+            BlockingQueue<CsvSettings> csvSettingsQueue = new LinkedBlockingQueue<>(config.getCsvSettings());
+
+            // Submit migration tasks
+            for (int i = 0; i < config.getMigrationSettings().getThreadsNumber(); i++) {
+                threadManager.submitTask(
+                        new MigrateTask(csvSettingsQueue, converter, writer,
+                                config.getMigrationSettings().getBatchSize()));
+                logger.info("Submitted migration task {}", i + 1);
+            }
+
+            // Start Retry Scheduler
+            RetryScheduler retryScheduler = new RetryScheduler(csvSettingsQueue,
+                    config.getIotdbSettings().getMaxRetries(),
+                    config.getIotdbSettings().getRetryInterval());
+            Thread retryThread = new Thread(retryScheduler, "RetryScheduler");
+            retryThread.start();
+            logger.info("RetryScheduler started.");
+
+            // Shutdown the ThreadManager after all tasks are completed
+            threadManager.shutdown();
+            logger.info("ThreadManager shutdown initiated.");
+
+            // Shutdown Retry Scheduler
+            retryThread.interrupt();
+            retryThread.join();
+            logger.info("RetryScheduler shutdown completed.");
+
+            // Close the IoTDBClientManager
+            clientManager.close();
+            logger.info("IoTDBClientManager closed.");
+
+            logger.info("CSV to IoTDB migration completed successfully.");
+        } catch (Exception e) {
+            logger.error("Migration failed: {}", e.getMessage(), e);
+            throw e; // Propagate exception to display to the user
+        } finally {
+            // Ensure the H2 Console is stopped when the application exits
+            H2DatabaseManager.getInstance().shutdown();
         }
-
-        // Shutdown the ThreadManager after all tasks are completed
-        threadManager.shutdown();
-
-        // Close the IoTDBClientManager
-        clientManager.close();
-
-        System.out.println("CSV to IoTDB migration completed.");
     }
 }

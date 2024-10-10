@@ -1,0 +1,160 @@
+2024-10-10 17:21:13 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-10 17:21:18 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - RetryScheduler started.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 12 ms
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 8 ms
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - ThreadManager shutdown initiated.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.RetryScheduler - RetryScheduler interrupted. Exiting scheduler thread.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - RetryScheduler shutdown completed.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - IoTDBClientManager closed.
+2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - CSV to IoTDB migration completed successfully.
+2024-10-10 17:24:58 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-10 17:25:02 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully
+2024-10-10 17:25:02 ERROR org.kreps.csvtoiotdb.Main - Migration failed: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
+INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
+org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
+INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:520)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
+	at org.h2.message.DbException.get(DbException.java:223)
+	at org.h2.message.DbException.get(DbException.java:199)
+	at org.h2.index.Index.getDuplicateKeyException(Index.java:523)
+	at org.h2.mvstore.db.MVSecondaryIndex.checkUnique(MVSecondaryIndex.java:223)
+	at org.h2.mvstore.db.MVSecondaryIndex.add(MVSecondaryIndex.java:184)
+	at org.h2.mvstore.db.MVTable.addRow(MVTable.java:517)
+	at org.h2.command.dml.Insert.insertRows(Insert.java:174)
+	at org.h2.command.dml.Insert.update(Insert.java:135)
+	at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74)
+	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
+	at org.h2.command.Command.executeUpdate(Command.java:304)
+	at org.h2.command.Command.executeUpdate(Command.java:248)
+	at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213)
+	at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172)
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61)
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java)
+	at org.kreps.csvtoiotdb.DAO.CsvSettingsDAO.insertCsvSetting(CsvSettingsDAO.java:26)
+	at org.kreps.csvtoiotdb.MigrationInitializer.initialize(MigrationInitializer.java:23)
+	at org.kreps.csvtoiotdb.Main.main(Main.java:25)
+2024-10-10 17:29:23 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-10 17:29:27 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully
+2024-10-10 17:29:27 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1
+2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 23 ms
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+2024-10-10 17:43:19 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-10 17:43:28 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully.
+2024-10-10 17:43:28 ERROR o.kreps.csvtoiotdb.H2DatabaseManager - Failed to start H2 Console: Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: bind" [90061-232]
+org.h2.jdbc.JdbcSQLNonTransientConnectionException: Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: bind" [90061-232]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:690)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.util.NetUtils.createServerSocketTry(NetUtils.java:206)
+	at org.h2.util.NetUtils.createServerSocket(NetUtils.java:172)
+	at org.h2.server.web.WebServer.start(WebServer.java:412)
+	at org.h2.tools.Server.start(Server.java:551)
+	at org.kreps.csvtoiotdb.H2DatabaseManager.startWebConsole(H2DatabaseManager.java:98)
+	at org.kreps.csvtoiotdb.H2DatabaseManager.<init>(H2DatabaseManager.java:24)
+	at org.kreps.csvtoiotdb.H2DatabaseManager.initialize(H2DatabaseManager.java:31)
+	at org.kreps.csvtoiotdb.Main.main(Main.java:24)
+Caused by: java.net.BindException: Address already in use: bind
+	at java.base/sun.nio.ch.Net.bind0(Native Method)
+	at java.base/sun.nio.ch.Net.bind(Net.java:555)
+	at java.base/sun.nio.ch.Net.bind(Net.java:544)
+	at java.base/sun.nio.ch.NioSocketImpl.bind(NioSocketImpl.java:648)
+	at java.base/java.net.ServerSocket.bind(ServerSocket.java:388)
+	at java.base/java.net.ServerSocket.<init>(ServerSocket.java:274)
+	at java.base/java.net.ServerSocket.<init>(ServerSocket.java:167)
+	at org.h2.util.NetUtils.createServerSocketTry(NetUtils.java:202)
+	... 7 common frames omitted
+2024-10-10 17:43:37 ERROR org.kreps.csvtoiotdb.Main - Migration failed: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
+INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
+org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
+INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:520)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
+	at org.h2.message.DbException.get(DbException.java:223)
+	at org.h2.message.DbException.get(DbException.java:199)
+	at org.h2.index.Index.getDuplicateKeyException(Index.java:523)
+	at org.h2.mvstore.db.MVSecondaryIndex.checkUnique(MVSecondaryIndex.java:223)
+	at org.h2.mvstore.db.MVSecondaryIndex.add(MVSecondaryIndex.java:184)
+	at org.h2.mvstore.db.MVTable.addRow(MVTable.java:517)
+	at org.h2.command.dml.Insert.insertRows(Insert.java:174)
+	at org.h2.command.dml.Insert.update(Insert.java:135)
+	at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74)
+	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
+	at org.h2.command.Command.executeUpdate(Command.java:304)
+	at org.h2.command.Command.executeUpdate(Command.java:248)
+	at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213)
+	at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172)
+	at org.kreps.csvtoiotdb.DAO.CsvSettingsDAO.insertCsvSetting(CsvSettingsDAO.java:26)
+	at org.kreps.csvtoiotdb.MigrationInitializer.initialize(MigrationInitializer.java:23)
+	at org.kreps.csvtoiotdb.Main.main(Main.java:27)
+2024-10-10 17:44:11 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-10 17:44:16 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully.
+2024-10-10 17:44:16 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-10 17:44:25 ERROR org.kreps.csvtoiotdb.Main - Migration failed: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
+INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
+org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
+INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:520)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
+	at org.h2.message.DbException.get(DbException.java:223)
+	at org.h2.message.DbException.get(DbException.java:199)
+	at org.h2.index.Index.getDuplicateKeyException(Index.java:523)
+	at org.h2.mvstore.db.MVSecondaryIndex.checkUnique(MVSecondaryIndex.java:223)
+	at org.h2.mvstore.db.MVSecondaryIndex.add(MVSecondaryIndex.java:184)
+	at org.h2.mvstore.db.MVTable.addRow(MVTable.java:517)
+	at org.h2.command.dml.Insert.insertRows(Insert.java:174)
+	at org.h2.command.dml.Insert.update(Insert.java:135)
+	at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74)
+	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
+	at org.h2.command.Command.executeUpdate(Command.java:304)
+	at org.h2.command.Command.executeUpdate(Command.java:248)
+	at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213)
+	at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172)
+	at org.kreps.csvtoiotdb.DAO.CsvSettingsDAO.insertCsvSetting(CsvSettingsDAO.java:26)
+	at org.kreps.csvtoiotdb.MigrationInitializer.initialize(MigrationInitializer.java:23)
+	at org.kreps.csvtoiotdb.Main.main(Main.java:27)
+2024-10-10 17:44:25 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console stopped.
+2024-10-10 17:45:32 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-10 17:45:37 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully.
+2024-10-10 17:45:37 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 13 ms
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
+2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2
+2024-10-10 17:46:28 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-10 17:46:28 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.

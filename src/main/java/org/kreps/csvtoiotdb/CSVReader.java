@@ -1,20 +1,29 @@
 package org.kreps.csvtoiotdb;
 
-import com.univocity.parsers.csv.CsvParser;
-import com.univocity.parsers.csv.CsvParserSettings;
-import org.kreps.csvtoiotdb.configs.csv.CsvColumn;
-import org.kreps.csvtoiotdb.configs.csv.CsvSettings;
-
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.kreps.csvtoiotdb.configs.csv.CsvColumn;
+import org.kreps.csvtoiotdb.configs.csv.CsvSettings;
+
+import com.univocity.parsers.csv.CsvParser;
+import com.univocity.parsers.csv.CsvParserSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Reads CSV files in batches and parses them into maps of joinKey to values.
  */
 public class CSVReader implements AutoCloseable {
+    private static final Logger logger = LoggerFactory.getLogger(CSVReader.class);
 
     private final CsvSettings csvSettings;
     private final int batchSize;
@@ -94,10 +103,12 @@ public class CSVReader implements AutoCloseable {
             String[] headers = parser.getContext().headers();
             updateHeaderMap(headers);
             isParsing = true;
+            logger.info("Opened new CSV file: {}", nextFile);
         } catch (IOException e) {
-            e.printStackTrace(); // Print stack trace to console
+            logger.error("Failed to open CSV file: {}", nextFile, e);
             closeCurrentReader(); // Ensure the reader is closed in case of an error
             isParsing = false;
+            throw e;
         }
     }
 
@@ -111,8 +122,12 @@ public class CSVReader implements AutoCloseable {
         String[] row = null;
 
         while (batch.size() < this.batchSize && (row = parser.parseNext()) != null) {
-            Map<String, Object> parsedRow = parseRow(row);
-            batch.add(parsedRow);
+            try {
+                Map<String, Object> parsedRow = parseRow(row);
+                batch.add(parsedRow);
+            } catch (IllegalArgumentException e) {
+                logger.warn("Skipping invalid row: {}", e.getMessage());
+            }
         }
 
         if (row == null) { // No more rows in current file
@@ -166,7 +181,7 @@ public class CSVReader implements AutoCloseable {
             try {
                 parser.stopParsing();
             } catch (Exception e) {
-                e.printStackTrace(); // Print stack trace to console
+                logger.error("Error stopping parser", e);
             } finally {
                 isParsing = false;
                 closeCurrentReader();
@@ -182,7 +197,7 @@ public class CSVReader implements AutoCloseable {
             try {
                 currentReader.close();
             } catch (IOException e) {
-                e.printStackTrace(); // Print stack trace to console
+                logger.error("Error closing current reader", e);
             } finally {
                 currentReader = null;
             }
@@ -219,6 +234,7 @@ public class CSVReader implements AutoCloseable {
     public void close() throws IOException {
         if (isClosed.compareAndSet(false, true)) {
             stopParsingAndClose();
+            logger.info("CSVReader closed successfully");
         }
     }
 

@@ -25,7 +25,7 @@
           "joinKey": "sensorValue"
         }
       ],
-      "filePaths": ["./tests/standard_test.csv"],
+      "filePaths": ["./tests/extra_columns_test.csv"],
       "delimiter": ",",
       "escapeCharacter": "\""
     }
@@ -58,7 +58,7 @@
           },
           {
             "name": "createdTime",
-            "dataType": "TEXT",
+            "dataType": "INT64",
             "joinKey": "createdTime",
             "encoding": "PLAIN",
             "compression": "SNAPPY"
@@ -67,15 +67,8 @@
       }
     ]
   },
-  "h2Config": {
-    "url": "jdbc:h2:./migrationDB;AUTO_SERVER=TRUE",
-    "username": "sa",
-    "password": "",
-    "enableConsole": true,
-    "consolePort": 8082
-  },
   "migrationSettings": {
     "threadsNumber": 1,
-    "batchSize": 1000
+    "batchSize": 5
   }
 }

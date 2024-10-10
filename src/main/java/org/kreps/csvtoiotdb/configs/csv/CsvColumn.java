@@ -14,6 +14,7 @@ public class CsvColumn {
     private String joinKey;
     private TimeFormatType timeFormatType;
     private String customTimeFormat;
+    private boolean isPathColumn;
 
     // Supported CsvDataType values for validation
     private static final CsvDataType[] SUPPORTED_DATA_TYPES = {
@@ -25,7 +26,7 @@ public class CsvColumn {
     }
 
     public CsvColumn(String name, CsvDataType type, String joinKey, TimeFormatType timeFormatType,
-            String customTimeFormat) {
+            String customTimeFormat, boolean isPathColumn) {
 
         this.name = Objects.requireNonNull(name, "Column name cannot be null");
 
@@ -41,6 +42,8 @@ public class CsvColumn {
         if (this.type == CsvDataType.TIME) {
             validateTimeFormat();
         }
+
+        this.isPathColumn = Boolean.TRUE.equals(isPathColumn);
     }
 
     private boolean isValidCsvDataType(CsvDataType type) {
@@ -54,8 +57,8 @@ public class CsvColumn {
 
     private String getSupportedDataTypes() {
         StringBuilder sb = new StringBuilder();
-        for (CsvDataType type : SUPPORTED_DATA_TYPES) {
-            sb.append(type.name()).append(", ");
+        for (CsvDataType dataType : SUPPORTED_DATA_TYPES) {
+            sb.append(dataType.name()).append(", ");
         }
         return sb.substring(0, sb.length() - 2); // Remove last comma and space
     }
@@ -144,6 +147,14 @@ public class CsvColumn {
             throw new RuntimeException(
                     String.format("Unexpected error occurred while parsing time value '%s'.", value), e);
         }
+    }
+
+    public boolean isPathColumn() {
+        return isPathColumn;
+    }
+
+    public void setIsPathColumn(boolean isPathColumn) {
+        this.isPathColumn = isPathColumn;
     }
 
     public String getName() {

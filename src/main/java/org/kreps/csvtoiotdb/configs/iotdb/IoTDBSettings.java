@@ -4,22 +4,48 @@ import java.util.List;
 
 public class IoTDBSettings {
     private int connectionPoolSize;
-    private int maxRetriesCount;
-    private long retryIntervalInMs;
+    private int maxRetries;
+    private long retryInterval;
     private List<IoTDBConnection> connections;
     private List<IoTDBDevice> devices;
+    private long maxBackoffTime;
 
     public IoTDBSettings() {
 
     }
 
     public IoTDBSettings(int connectionPoolSize, List<IoTDBConnection> connections, List<IoTDBDevice> devices,
-            int maxRetriesCount, long retryIntervalInMs) {
+            int maxRetries, long retryInterval, long maxBackoffTime) {
         this.connectionPoolSize = connectionPoolSize;
         this.connections = connections;
         this.devices = devices;
-        this.maxRetriesCount = maxRetriesCount;
-        this.retryIntervalInMs = retryIntervalInMs;
+        this.maxRetries = maxRetries;
+        this.retryInterval = retryInterval;
+        this.maxBackoffTime = maxBackoffTime;
+    }
+
+    public int getConnectionPoolSize() {
+        return connectionPoolSize;
+    }
+
+    public void setConnectionPoolSize(int connectionPoolSize) {
+        this.connectionPoolSize = connectionPoolSize;
+    }
+
+    public int getMaxRetries() {
+        return maxRetries;
+    }
+
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
+    }
+
+    public long getRetryInterval() {
+        return retryInterval;
+    }
+
+    public void setRetryInterval(long retryInterval) {
+        this.retryInterval = retryInterval;
     }
 
     public List<IoTDBConnection> getConnections() {
@@ -38,28 +64,12 @@ public class IoTDBSettings {
         this.devices = devices;
     }
 
-    public int getConnectionPoolSize() {
-        return connectionPoolSize;
+    public long getMaxBackoffTime() {
+        return maxBackoffTime;
     }
 
-    public void setConnectionPoolSize(int connectionPoolSize) {
-        this.connectionPoolSize = connectionPoolSize;
-    }
-
-    public int getMaxRetriesCount() {
-        return maxRetriesCount;
-    }
-
-    public void setMaxRetriesCount(int maxRetriesCount) {
-        this.maxRetriesCount = maxRetriesCount;
-    }
-
-    public long getRetryIntervalInMs() {
-        return retryIntervalInMs;
-    }
-
-    public void setRetryIntervalInMs(long retryIntervalInMs) {
-        this.retryIntervalInMs = retryIntervalInMs;
+    public void setMaxBackoffTime(long maxBackoffTime) {
+        this.maxBackoffTime = maxBackoffTime;
     }
 
 }

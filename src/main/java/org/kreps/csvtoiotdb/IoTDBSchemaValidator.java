@@ -1,16 +1,15 @@
 package org.kreps.csvtoiotdb;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.iotdb.isession.pool.SessionDataSetWrapper;
 import org.apache.iotdb.rpc.IoTDBConnectionException;
-import org.apache.iotdb.session.Session;
+import org.apache.iotdb.rpc.StatementExecutionException;
+import org.apache.iotdb.session.pool.SessionPool;
+import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
-import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
-
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.iotdb.isession.SessionDataSet;
-import org.apache.iotdb.rpc.StatementExecutionException;
 import org.apache.iotdb.tsfile.read.common.Field;
 import org.kreps.csvtoiotdb.configs.iotdb.IoTDBDevice;
 import org.kreps.csvtoiotdb.configs.iotdb.IoTDBMeasurement;
@@ -33,13 +32,25 @@ public class IoTDBSchemaValidator {
     public void validateAndCreateTimeseriesForDevices(List<IoTDBDevice> devices) throws Exception {
         for (IoTDBDevice device : devices) {
             String deviceId = device.getDeviceId();
-            for (IoTDBMeasurement measurement : device.getMeasurements()) {
-                TSDataType dataType = measurement.getDataType();
-                TSEncoding encoding = measurement.getEncoding();
-                CompressionType compression = measurement.getCompression();
+            String pathColumn = device.getPathColumn();
 
-                // Ensure the timeseries exists or create it
-                ensureTimeseries(deviceId, measurement.getName(), dataType, encoding, compression);
+            if (pathColumn == null || pathColumn.isEmpty()) {
+                if (Boolean.TRUE.equals(device.getIsAlignedTimeseries())) {
+                    createAlignedTimeseries(deviceId, device.getMeasurements());
+                } else {
+                    for (IoTDBMeasurement measurement : device.getMeasurements()) {
+                        TSDataType dataType = measurement.getDataType();
+                        TSEncoding encoding = measurement.getEncoding();
+                        CompressionType compression = measurement.getCompression();
+
+                        // Ensure the timeseries exists or create it
+                        ensureTimeseries(deviceId, measurement.getName(), dataType, encoding, compression);
+                    }
+                }
+            } else {
+                // For devices with pathColumn, we can't create timeseries here
+                // as we don't know the specific path values
+                System.out.println("Skipping schema validation for device with pathColumn: " + deviceId);
             }
         }
     }
@@ -73,13 +84,17 @@ public class IoTDBSchemaValidator {
      * @return True if the timeseries exists, false otherwise.
      * @throws IoTDBConnectionException
      */
-    private boolean checkTimeseriesExists(String timeseriesPath) throws IoTDBConnectionException {
+    private boolean checkTimeseriesExists(String timeseriesPath)
+            throws IoTDBConnectionException, StatementExecutionException {
         String sql = String.format("SHOW TIMESERIES %s", timeseriesPath);
 
-        try (Session session = this.iotdbClientManager.acquireSession()) {
-            SessionDataSet dataSet = session.executeQueryStatement(sql);
+        SessionPool session = this.iotdbClientManager.acquireSession();
+
+        try (SessionDataSetWrapper dataSet = session.executeQueryStatement(sql)) {
             return dataSet.hasNext();
-        } catch (InterruptedException | IoTDBConnectionException | StatementExecutionException e) {
+        } catch (IoTDBConnectionException |
+
+                StatementExecutionException e) {
             throw new IoTDBConnectionException("Error checking if timeseries exists: " + timeseriesPath, e);
         }
     }
@@ -98,20 +113,15 @@ public class IoTDBSchemaValidator {
 
         String sql = String.format("SHOW TIMESERIES %s", timeseriesPath);
 
-        try (Session session = this.iotdbClientManager.acquireSession()) {
-            SessionDataSet dataSet = session.executeQueryStatement(sql);
-
+        SessionPool sessionPool = this.iotdbClientManager.acquireSession();
+        try (SessionDataSetWrapper dataSet = sessionPool.executeQueryStatement(sql)) {
             if (dataSet.hasNext()) {
                 List<Field> schemaInfo = dataSet.next().getFields();
-
-                // Use indexes to extract the data type, encoding, and compression
-                // Assuming the positions are: 2 = dataType, 3 = encoding, 4 = compression
 
                 TSDataType actualDataType = TSDataType.valueOf(schemaInfo.get(3).getStringValue());
                 TSEncoding actualEncoding = TSEncoding.valueOf(schemaInfo.get(4).getStringValue());
                 CompressionType actualCompression = CompressionType.valueOf(schemaInfo.get(5).getStringValue());
 
-                // Compare the extracted values with the expected values
                 if (!expectedDataType.equals(actualDataType) ||
                         !expectedEncoding.equals(actualEncoding) ||
                         !expectedCompression.equals(actualCompression)) {
@@ -140,11 +150,35 @@ public class IoTDBSchemaValidator {
      */
     private void createTimeseries(String timeseriesPath, TSDataType dataType, TSEncoding encoding,
             CompressionType compression) throws IoTDBConnectionException {
-        try (Session session = this.iotdbClientManager.acquireSession()) {
-            session.createTimeseries(timeseriesPath, dataType, encoding, compression);
+        SessionPool sessionPool = this.iotdbClientManager.acquireSession();
+        try {
+            sessionPool.createTimeseries(timeseriesPath, dataType, encoding, compression);
             System.out.println("Created new timeseries: " + timeseriesPath);
-        } catch (InterruptedException | IoTDBConnectionException | StatementExecutionException e) {
+        } catch (IoTDBConnectionException | StatementExecutionException e) {
             throw new IoTDBConnectionException("Error creating timeseries: " + timeseriesPath, e);
+        }
+    }
+
+    private void createAlignedTimeseries(String deviceId, List<IoTDBMeasurement> measurements) throws Exception {
+        List<String> measurementNames = new ArrayList<>();
+        List<TSDataType> dataTypes = new ArrayList<>();
+        List<TSEncoding> encodings = new ArrayList<>();
+        List<CompressionType> compressionTypes = new ArrayList<>();
+
+        for (IoTDBMeasurement measurement : measurements) {
+            measurementNames.add(measurement.getName());
+            dataTypes.add(measurement.getDataType());
+            encodings.add(measurement.getEncoding());
+            compressionTypes.add(measurement.getCompression());
+        }
+
+        SessionPool sessionPool = this.iotdbClientManager.acquireSession();
+        try {
+            sessionPool.createAlignedTimeseries(deviceId, measurementNames, dataTypes, encodings, compressionTypes,
+                    null);
+            System.out.println("Created aligned timeseries for device: " + deviceId);
+        } catch (IoTDBConnectionException | StatementExecutionException e) {
+            throw new Exception("Error creating aligned timeseries for device: " + deviceId, e);
         }
     }
 }

@@ -1,98 +1,238 @@
 package org.kreps.csvtoiotdb;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.kreps.csvtoiotdb.configs.csv.CsvColumn;
+import org.kreps.csvtoiotdb.configs.csv.CsvDataType;
+import org.kreps.csvtoiotdb.configs.csv.CsvSettings;
 import org.kreps.csvtoiotdb.configs.iotdb.IoTDBDevice;
 import org.kreps.csvtoiotdb.configs.iotdb.IoTDBMeasurement;
+import org.kreps.csvtoiotdb.configs.iotdb.IoTDBSettings;
 import org.kreps.csvtoiotdb.converter.RowData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Converts parsed CSV rows into a format suitable for IoTDB insertion.
- */
 public class Converter {
-    private final List<IoTDBDevice> ioTDBSettingsList;
+    private static final Logger logger = LoggerFactory.getLogger(Converter.class);
 
-    /**
-     * Constructs a Converter instance.
-     *
-     * @param ioTDBSettingsList The list of IoTDB settings to be used for
-     *                          conversion.
-     */
-    public Converter(List<IoTDBDevice> ioTDBSettingsList) {
-        this.ioTDBSettingsList = ioTDBSettingsList;
+    private final IoTDBSettings ioTDBSettings;
+    private final List<CsvSettings> csvSettingsList;
+    private final Map<String, IoTDBDevice> deviceMap;
+    private final Map<String, Map<String, IoTDBMeasurement>> measurementMap;
+    private final Map<String, CsvColumn> csvColumnMap;
+
+    public Converter(IoTDBSettings ioTDBSettings, List<CsvSettings> csvSettingsList) {
+        this.ioTDBSettings = ioTDBSettings;
+        this.csvSettingsList = csvSettingsList;
+        this.deviceMap = new HashMap<>();
+        this.measurementMap = new HashMap<>();
+        this.csvColumnMap = new HashMap<>();
+        initializeMaps();
+        logger.info("Converter initialized with {} IoTDB devices and {} CSV settings", 
+                    ioTDBSettings.getDevices().size(), csvSettingsList.size());
     }
 
-    /**
-     * Converts a batch of parsed CSV rows into a map grouped by device ID.
-     *
-     * @param rows The list of parsed CSV rows.
-     * @return A map where the key is the device ID and the value is a list of
-     *         RowData.
-     */
+    private void initializeMaps() {
+        for (IoTDBDevice device : ioTDBSettings.getDevices()) {
+            deviceMap.put(device.getDeviceId(), device);
+            Map<String, IoTDBMeasurement> deviceMeasurements = new HashMap<>();
+            for (IoTDBMeasurement measurement : device.getMeasurements()) {
+                deviceMeasurements.put(measurement.getJoinKey(), measurement);
+            }
+            measurementMap.put(device.getDeviceId(), deviceMeasurements);
+        }
+
+        for (CsvSettings csvSettings : csvSettingsList) {
+            for (CsvColumn column : csvSettings.getColumns()) {
+                csvColumnMap.put(column.getJoinKey(), column);
+            }
+        }
+        logger.debug("Initialized maps: {} devices, {} measurements, {} CSV columns", 
+                     deviceMap.size(), measurementMap.size(), csvColumnMap.size());
+    }
+
     public Map<String, List<RowData>> convert(List<Map<String, Object>> rows) {
         Map<String, List<RowData>> deviceDataMap = new HashMap<>();
+        int skippedRows = 0;
 
         for (Map<String, Object> row : rows) {
-            // Extract timestamps
             Long timestamp = (Long) row.get("timestamp");
+            if (timestamp == null) {
+                logger.warn("Row skipped due to missing timestamp");
+                skippedRows++;
+                continue;
+            }
 
-            for (IoTDBDevice ioTDBSettings : this.ioTDBSettingsList) {
-                boolean match = ioTDBSettings.getMeasurements().stream()
-                        .allMatch(m -> row.containsKey(m.getJoinKey()));
+            for (IoTDBDevice device : ioTDBSettings.getDevices()) {
+                try {
+                    String fullPath = constructDevicePath(row, device);
+                    Map<String, Object> measurements = extractMeasurements(row, device);
 
-                if (match) {
-                    Map<String, Object> measurements = new HashMap<>();
-                    for (IoTDBMeasurement measurement : ioTDBSettings.getMeasurements()) {
-                        Object value = row.get(measurement.getJoinKey());
-                        if (value != null) {
-                            Object convertedValue = convertType(value, measurement.getDataType());
-                            measurements.put(measurement.getName(), convertedValue);
-                        }
+                    if (!measurements.isEmpty()) {
+                        RowData rowData = new RowData(timestamp, measurements);
+                        deviceDataMap.computeIfAbsent(fullPath, k -> new ArrayList<>()).add(rowData);
+                    } else {
+                        logger.debug("No measurements extracted for device: {} in row with timestamp: {}", 
+                                     device.getDeviceId(), timestamp);
                     }
-                    RowData rowData = new RowData(timestamp, measurements);
-                    deviceDataMap.computeIfAbsent(ioTDBSettings.getDeviceId(), k -> new ArrayList<>()).add(rowData);
+                } catch (IllegalStateException e) {
+                    logger.error("Error processing row for device: {}. Error: {}", device.getDeviceId(), e.getMessage());
                 }
             }
         }
 
+        logger.info("Conversion completed. Processed {} rows, skipped {} rows, resulting in {} device data entries", 
+                    rows.size(), skippedRows, deviceDataMap.size());
         return deviceDataMap;
     }
 
-    /**
-     * Converts a value to the target IoTDB data type.
-     *
-     * @param value      The original value.
-     * @param targetType The target IoTDB data type.
-     * @return The converted value.
-     */
-    private Object convertType(Object value, TSDataType targetType) {
-        if (value == null)
-            return null;
+    private String constructDevicePath(Map<String, Object> row, IoTDBDevice device) {
+        String deviceId = device.getDeviceId();
+        String pathColumn = device.getPathColumn();
 
-        switch (targetType) {
-            case INT32 -> {
-                return ((Number) value).intValue();
+        if (pathColumn != null && !pathColumn.isEmpty()) {
+            Object pathValue = row.get(pathColumn);
+            if (pathValue == null) {
+                logger.error("Path column '{}' is null for device: {}", pathColumn, deviceId);
+                throw new IllegalStateException("Path column '" + pathColumn + "' is null for device: " + deviceId);
             }
-            case INT64 -> {
-                return ((Number) value).longValue();
+            return deviceId + "." + pathValue.toString();
+        }
+
+        return deviceId;
+    }
+
+    private Map<String, Object> extractMeasurements(Map<String, Object> row, IoTDBDevice device) {
+        Map<String, Object> measurements = new HashMap<>();
+        Map<String, IoTDBMeasurement> deviceMeasurements = measurementMap.get(device.getDeviceId());
+
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            String joinKey = entry.getKey();
+            if (deviceMeasurements.containsKey(joinKey) && !joinKey.equals(device.getPathColumn())) {
+                IoTDBMeasurement measurement = deviceMeasurements.get(joinKey);
+                CsvColumn csvColumn = csvColumnMap.get(joinKey);
+                Object value = convertValue(entry.getValue(), csvColumn.getType(), measurement.getDataType());
+                if (value != null) {
+                    measurements.put(measurement.getName(), value);
+                }
             }
-            case FLOAT -> {
-                return ((Number) value).floatValue();
-            }
-            case DOUBLE -> {
-                return ((Number) value).doubleValue();
-            }
-            case BOOLEAN -> {
-                return value;
-            }
-            case TEXT -> {
-                return value.toString();
-            }
-            default -> throw new IllegalArgumentException("Unsupported IoTDB data type: " + targetType);
+        }
+
+        return measurements;
+    }
+
+    private Object convertValue(Object value, CsvDataType originalType, TSDataType targetType) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            return switch (originalType) {
+                case DOUBLE -> switch (targetType) {
+                    case DOUBLE -> ((Number) value).doubleValue();
+                    case FLOAT -> {
+                        double doubleValue = ((Number) value).doubleValue();
+                        float floatValue = (float) doubleValue;
+                        if (doubleValue != floatValue) {
+                            System.out.println(
+                                    "Warning: Possible loss of precision converting DOUBLE to FLOAT for value: "
+                                            + value);
+                        }
+                        yield floatValue;
+                    }
+                    case INT32 -> {
+                        double doubleValue = ((Number) value).doubleValue();
+                        int intValue = (int) doubleValue;
+                        if (doubleValue != intValue) {
+                            System.out.println(
+                                    "Warning: Possible loss of precision converting DOUBLE to INT32 for value: "
+                                            + value);
+                        }
+                        yield intValue;
+                    }
+                    case INT64 -> {
+                        double doubleValue = ((Number) value).doubleValue();
+                        long longValue = (long) doubleValue;
+                        if (doubleValue != longValue) {
+                            System.out.println(
+                                    "Warning: Possible loss of precision converting DOUBLE to INT64 for value: "
+                                            + value);
+                        }
+                        yield longValue;
+                    }
+                    case TEXT -> value.toString();
+                    default -> throw new IllegalArgumentException("Invalid conversion from DOUBLE to " + targetType);
+                };
+                case FLOAT -> switch (targetType) {
+                    case DOUBLE -> ((Number) value).doubleValue();
+                    case FLOAT -> ((Number) value).floatValue();
+                    case INT32 -> {
+                        float floatValue = ((Number) value).floatValue();
+                        int intValue = (int) floatValue;
+                        if (floatValue != intValue) {
+                            System.out
+                                    .println("Warning: Possible loss of precision converting FLOAT to INT32 for value: "
+                                            + value);
+                        }
+                        yield intValue;
+                    }
+                    case INT64 -> {
+                        float floatValue = ((Number) value).floatValue();
+                        long longValue = (long) floatValue;
+                        if (floatValue != longValue) {
+                            System.out
+                                    .println("Warning: Possible loss of precision converting FLOAT to INT64 for value: "
+                                            + value);
+                        }
+                        yield longValue;
+                    }
+                    case TEXT -> value.toString();
+                    default -> throw new IllegalArgumentException("Invalid conversion from FLOAT to " + targetType);
+                };
+                case INTEGER, LONG -> switch (targetType) {
+                    case INT32 -> ((Number) value).intValue();
+                    case INT64 -> ((Number) value).longValue();
+                    case FLOAT -> ((Number) value).floatValue();
+                    case DOUBLE -> ((Number) value).doubleValue();
+                    case TEXT -> value.toString();
+                    default -> throw new IllegalArgumentException(
+                            "Invalid conversion from " + originalType + " to " + targetType);
+                };
+                case BOOLEAN -> switch (targetType) {
+                    case BOOLEAN -> (Boolean) value;
+                    case INT32 -> ((Boolean) value) ? 1 : 0;
+                    case INT64 -> ((Boolean) value) ? 1L : 0L;
+                    case TEXT -> value.toString();
+                    default -> throw new IllegalArgumentException("Invalid conversion from BOOLEAN to " + targetType);
+                };
+                case TIME -> switch (targetType) {
+                    case INT64 -> (Long) value;
+                    case TEXT -> {
+                        long timeMillis = (Long) value;
+                        yield Instant.ofEpochMilli(timeMillis).toString();
+                    }
+                    default -> throw new IllegalArgumentException("Invalid conversion from TIME to " + targetType);
+                };
+                case STRING -> switch (targetType) {
+                    case TEXT -> value.toString();
+                    case INT32 -> Integer.parseInt(value.toString());
+                    case INT64 -> Long.parseLong(value.toString());
+                    case FLOAT -> Float.parseFloat(value.toString());
+                    case DOUBLE -> Double.parseDouble(value.toString());
+                    case BOOLEAN -> Boolean.parseBoolean(value.toString());
+                    default -> throw new IllegalArgumentException("Invalid conversion from STRING to " + targetType);
+                };
+                default -> throw new IllegalArgumentException("Unsupported CSV data type: " + originalType);
+            };
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error converting value: " + value + " from " + originalType + " to " + targetType + ": "
+                    + e.getMessage());
+            return null;
         }
     }
 }

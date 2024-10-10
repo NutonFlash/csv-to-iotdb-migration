@@ -1,0 +1,74 @@
+{
+    "csvSettings": [
+      {
+        "timestampColumn": {
+          "name": "Timestamp",
+          "type": "TIME",
+          "timeFormatType": "UNIX"
+        },
+        "columns": [
+          {
+            "name": "CreatedTime",
+            "type": "TIME",
+            "joinKey": "createdTime",
+            "timeFormatType": "ISO"
+          },
+          {
+            "name": "Tag",
+            "type": "STRING",
+            "joinKey": "sensorTag",
+            "isPathColumn": true
+          },
+          {
+            "name": "Value",
+            "type": "DOUBLE",
+            "joinKey": "sensorValue"
+          }
+        ],
+        "filePaths": ["./tests/missing_values_test.csv"],
+        "delimiter": ",",
+        "escapeCharacter": "\""
+      }
+    ],
+    "iotdbSettings": {
+      "connectionPoolSize": 10,
+      "maxRetries": 5,
+      "retryInterval": 1500,
+      "maxBackoffTime": 10000,
+      "connections": [
+        {
+          "host": "192.168.0.202",
+          "port": 6667,
+          "username": "root",
+          "password": "root"
+        }
+      ],
+      "devices": [
+        {
+          "deviceId": "root.powerplant",
+          "pathColumn": "sensorTag",
+          "isAlignedTimeseries": true,
+          "measurements": [
+            {
+              "name": "sensorValue",
+              "dataType": "DOUBLE",
+              "joinKey": "sensorValue",
+              "encoding": "RLE",
+              "compression": "SNAPPY"
+            },
+            {
+              "name": "createdTime",
+              "dataType": "INT64",
+              "joinKey": "createdTime",
+              "encoding": "PLAIN",
+              "compression": "SNAPPY"
+            }
+          ]
+        }
+      ]
+    },
+    "migrationSettings": {
+      "threadsNumber": 1,
+      "batchSize": 5
+    }
+  }
