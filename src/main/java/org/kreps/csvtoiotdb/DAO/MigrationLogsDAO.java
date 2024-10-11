@@ -12,21 +12,20 @@ import org.kreps.csvtoiotdb.H2DatabaseManager;
 public class MigrationLogsDAO {
     private final H2DatabaseManager dbManager;
 
-    public MigrationLogsDAO() throws SQLException {
+    public MigrationLogsDAO() {
         this.dbManager = H2DatabaseManager.getInstance();
     }
 
-    public void insertLog(Long csvSettingId, String level, String message) throws SQLException {
+    public void insertLog(Long csvSettingId, LogLevel level, String message, Connection conn) throws SQLException {
         String sql = "INSERT INTO migration_logs (csv_setting_id, log_level, message) VALUES (?, ?, ?)";
 
-        try (Connection conn = dbManager.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             if (csvSettingId != null) {
                 pstmt.setLong(1, csvSettingId);
             } else {
                 pstmt.setNull(1, java.sql.Types.BIGINT);
             }
-            pstmt.setString(2, level);
+            pstmt.setString(2, level.getValue());
             pstmt.setString(3, message);
             pstmt.executeUpdate();
         }
@@ -47,13 +46,13 @@ public class MigrationLogsDAO {
         return logs;
     }
 
-    public List<String> getLogsByLevel(String level) throws SQLException {
+    public List<String> getLogsByLevel(LogLevel level) throws SQLException {
         String sql = "SELECT message FROM migration_logs WHERE log_level = ? ORDER BY log_timestamp";
         List<String> logs = new ArrayList<>();
 
         try (Connection conn = dbManager.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, level);
+            pstmt.setString(1, level.getValue());
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
                 logs.add(rs.getString("message"));

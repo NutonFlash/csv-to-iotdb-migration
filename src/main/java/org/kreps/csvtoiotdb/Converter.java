@@ -1,5 +1,7 @@
 package org.kreps.csvtoiotdb;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.kreps.csvtoiotdb.DAO.RowProcessingDAO;
+import org.kreps.csvtoiotdb.DAO.RowProcessingStatus;
 import org.kreps.csvtoiotdb.configs.csv.CsvColumn;
 import org.kreps.csvtoiotdb.configs.csv.CsvDataType;
 import org.kreps.csvtoiotdb.configs.csv.CsvSettings;
@@ -25,16 +29,21 @@ public class Converter {
     private final Map<String, IoTDBDevice> deviceMap;
     private final Map<String, Map<String, IoTDBMeasurement>> measurementMap;
     private final Map<String, CsvColumn> csvColumnMap;
+    private final RowProcessingDAO rowProcessingDAO;
+    private final H2DatabaseManager dbManager;
 
-    public Converter(IoTDBSettings ioTDBSettings, List<CsvSettings> csvSettingsList) {
+    public Converter(IoTDBSettings ioTDBSettings, List<CsvSettings> csvSettingsList, H2DatabaseManager dbManager)
+            throws SQLException {
         this.ioTDBSettings = ioTDBSettings;
         this.csvSettingsList = csvSettingsList;
         this.deviceMap = new HashMap<>();
         this.measurementMap = new HashMap<>();
         this.csvColumnMap = new HashMap<>();
+        this.rowProcessingDAO = new RowProcessingDAO();
+        this.dbManager = dbManager;
         initializeMaps();
-        logger.info("Converter initialized with {} IoTDB devices and {} CSV settings", 
-                    ioTDBSettings.getDevices().size(), csvSettingsList.size());
+        logger.info("Converter initialized with {} IoTDB devices and {} CSV settings",
+                ioTDBSettings.getDevices().size(), csvSettingsList.size());
     }
 
     private void initializeMaps() {
@@ -52,42 +61,61 @@ public class Converter {
                 csvColumnMap.put(column.getJoinKey(), column);
             }
         }
-        logger.debug("Initialized maps: {} devices, {} measurements, {} CSV columns", 
-                     deviceMap.size(), measurementMap.size(), csvColumnMap.size());
+        logger.debug("Initialized maps: {} devices, {} measurements, {} CSV columns",
+                deviceMap.size(), measurementMap.size(), csvColumnMap.size());
     }
 
-    public Map<String, List<RowData>> convert(List<Map<String, Object>> rows) {
+    public Map<String, List<RowData>> convert(List<Map<String, Object>> rows, long csvSettingId) throws SQLException {
         Map<String, List<RowData>> deviceDataMap = new HashMap<>();
         int skippedRows = 0;
 
-        for (Map<String, Object> row : rows) {
-            Long timestamp = (Long) row.get("timestamp");
-            if (timestamp == null) {
-                logger.warn("Row skipped due to missing timestamp");
-                skippedRows++;
-                continue;
-            }
-
-            for (IoTDBDevice device : ioTDBSettings.getDevices()) {
-                try {
-                    String fullPath = constructDevicePath(row, device);
-                    Map<String, Object> measurements = extractMeasurements(row, device);
-
-                    if (!measurements.isEmpty()) {
-                        RowData rowData = new RowData(timestamp, measurements);
-                        deviceDataMap.computeIfAbsent(fullPath, k -> new ArrayList<>()).add(rowData);
-                    } else {
-                        logger.debug("No measurements extracted for device: {} in row with timestamp: {}", 
-                                     device.getDeviceId(), timestamp);
+        try (Connection conn = dbManager.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                for (Map<String, Object> row : rows) {
+                    String rowId = (String) row.get("row_id");
+                    int rowNumber = (Integer) row.get("row_number");
+                    Long timestamp = (Long) row.get("timestamp");
+                    if (timestamp == null) {
+                        logger.warn("Row {} (number {}) skipped due to missing timestamp", rowId, rowNumber);
+                        skippedRows++;
+                        rowProcessingDAO.updateRowStatus(csvSettingId, rowId, rowNumber, RowProcessingStatus.FAILED,
+                                "Missing timestamp", conn);
+                        continue;
                     }
-                } catch (IllegalStateException e) {
-                    logger.error("Error processing row for device: {}. Error: {}", device.getDeviceId(), e.getMessage());
+
+                    for (IoTDBDevice device : ioTDBSettings.getDevices()) {
+                        try {
+                            String fullPath = constructDevicePath(row, device);
+                            Map<String, Object> measurements = extractMeasurements(row, device);
+
+                            if (!measurements.isEmpty()) {
+                                RowData rowData = new RowData(rowId, rowNumber, timestamp, measurements);
+                                deviceDataMap.computeIfAbsent(fullPath, k -> new ArrayList<>()).add(rowData);
+                                rowProcessingDAO.updateRowStatus(csvSettingId, rowId, rowNumber, RowProcessingStatus.PROCESSING,
+                                        null, conn);
+                            } else {
+                                logger.debug("No measurements extracted for device: {} in row {} (number {})", 
+                                        device.getDeviceId(), rowId, rowNumber);
+                            }
+                        } catch (IllegalStateException e) {
+                            logger.error("Error processing row {} (number {}) for device: {}. Error: {}", rowId,
+                                    rowNumber, device.getDeviceId(), e.getMessage());
+                            rowProcessingDAO.updateRowStatus(csvSettingId, rowId, rowNumber, RowProcessingStatus.FAILED,
+                                    e.getMessage(), conn);
+                        }
+                    }
                 }
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                logger.error("Database error during conversion: {}", e.getMessage(), e);
+                throw e;
             }
         }
 
-        logger.info("Conversion completed. Processed {} rows, skipped {} rows, resulting in {} device data entries", 
-                    rows.size(), skippedRows, deviceDataMap.size());
+        logger.info("Conversion completed. Processed {} rows, skipped {} rows, resulting in {} device data entries",
+                rows.size(), skippedRows, deviceDataMap.size());
         return deviceDataMap;
     }
 

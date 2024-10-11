@@ -1,160 +1,175 @@
-2024-10-10 17:21:13 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
-2024-10-10 17:21:18 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - RetryScheduler started.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 12 ms
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 8 ms
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - ThreadManager shutdown initiated.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.RetryScheduler - RetryScheduler interrupted. Exiting scheduler thread.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - RetryScheduler shutdown completed.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - IoTDBClientManager closed.
-2024-10-10 17:21:18 INFO  org.kreps.csvtoiotdb.Main - CSV to IoTDB migration completed successfully.
-2024-10-10 17:24:58 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
-2024-10-10 17:25:02 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully
-2024-10-10 17:25:02 ERROR org.kreps.csvtoiotdb.Main - Migration failed: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
-INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
-org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
-INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:520)
+2024-10-11 18:06:46 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-11 18:06:51 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS csv_settings (id IDENTITY PRIMARY KEY, file_path VARCHAR(255) UNIQUE NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, total_rows INT DEFAULT 0, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, last_processed_timestamp TIMESTAMP, error_message VARCHAR(1024), has_failed_rows BOOLEAN DEFAULT FALSE)
+2024-10-11 18:06:51 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS migration_logs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, log_level ENUM('INFO', 'WARNING', 'ERROR') NOT NULL, message VARCHAR(2048), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:06:51 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS row_processing (csv_setting_id BIGINT NOT NULL, row_id VARCHAR(255) NOT NULL, row_number INT NOT NULL, status VARCHAR(50) NOT NULL, error_message VARCHAR(1024), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, retry_count INT DEFAULT 0, PRIMARY KEY (csv_setting_id, row_id), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:06:51 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS jobs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, end_time TIMESTAMP, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, error_message VARCHAR(1024), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:06:51 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialization completed.
+2024-10-11 18:06:51 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-11 18:06:55 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-11 18:06:55 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-11 18:06:55 INFO  org.kreps.csvtoiotdb.Converter - Converter initialized with 1 IoTDB devices and 1 CSV settings
+2024-10-11 18:06:55 INFO  org.kreps.csvtoiotdb.IoTDBWriter - IoTDBWriter initialized with maxRetries: 5, retryInterval: 1500ms, maxBackoffTime: 10000ms
+2024-10-11 18:06:55 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-11 18:06:55 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.CSVReader - Opened new CSV file: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.CSVReader - Updated total rows for file: ./tests/standard_test.csv. Total rows: 10
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.Converter - Conversion completed. Processed 10 rows, skipped 0 rows, resulting in 3 device data entries
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Starting to write data for 3 devices from file: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1. Rows: 3, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.B42b1 after 1 attempts in 80 ms. File: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1. File: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3. Rows: 3, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.C53c3 after 1 attempts in 73 ms. File: ./tests/standard_test.csv
+2024-10-11 18:07:00 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3. File: ./tests/standard_test.csv
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2. Rows: 4, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.A31a2 after 1 attempts in 17 ms. File: ./tests/standard_test.csv
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2. File: ./tests/standard_test.csv
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Finished writing data for all devices from file: ./tests/standard_test.csv
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.CSVReader - CSVReader closed successfully
+2024-10-11 18:07:01 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+2024-10-11 18:12:34 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-11 18:12:39 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS csv_settings (id IDENTITY PRIMARY KEY, file_path VARCHAR(255) UNIQUE NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, total_rows INT DEFAULT 0, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, last_processed_timestamp TIMESTAMP, error_message VARCHAR(1024), has_failed_rows BOOLEAN DEFAULT FALSE)
+2024-10-11 18:12:39 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS migration_logs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, log_level ENUM('INFO', 'WARNING', 'ERROR') NOT NULL, message VARCHAR(2048), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:12:39 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS row_processing (csv_setting_id BIGINT NOT NULL, row_id VARCHAR(255) NOT NULL, row_number INT NOT NULL, status VARCHAR(50) NOT NULL, error_message VARCHAR(1024), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, retry_count INT DEFAULT 0, PRIMARY KEY (csv_setting_id, row_id), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:12:39 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS jobs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, end_time TIMESTAMP, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, error_message VARCHAR(1024), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:12:39 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialization completed.
+2024-10-11 18:12:39 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-11 18:12:44 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-11 18:12:44 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-11 18:12:44 INFO  org.kreps.csvtoiotdb.Converter - Converter initialized with 1 IoTDB devices and 1 CSV settings
+2024-10-11 18:12:44 INFO  org.kreps.csvtoiotdb.IoTDBWriter - IoTDBWriter initialized with maxRetries: 5, retryInterval: 1500ms, maxBackoffTime: 10000ms
+2024-10-11 18:12:44 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-11 18:12:44 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-11 18:12:49 ERROR org.kreps.csvtoiotdb.MigrateTask - Database error during migration task: Value not permitted for column "('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED')": "STARTED"; SQL statement:
+UPDATE jobs SET status = ?, error_message = ?, end_time = CURRENT_TIMESTAMP WHERE id = ? [22030-232]
+org.h2.jdbc.JdbcSQLDataException: Value not permitted for column "('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED')": "STARTED"; SQL statement:
+UPDATE jobs SET status = ?, error_message = ?, end_time = CURRENT_TIMESTAMP WHERE id = ? [22030-232]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:518)
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
 	at org.h2.message.DbException.get(DbException.java:223)
-	at org.h2.message.DbException.get(DbException.java:199)
-	at org.h2.index.Index.getDuplicateKeyException(Index.java:523)
-	at org.h2.mvstore.db.MVSecondaryIndex.checkUnique(MVSecondaryIndex.java:223)
-	at org.h2.mvstore.db.MVSecondaryIndex.add(MVSecondaryIndex.java:184)
-	at org.h2.mvstore.db.MVTable.addRow(MVTable.java:517)
-	at org.h2.command.dml.Insert.insertRows(Insert.java:174)
-	at org.h2.command.dml.Insert.update(Insert.java:135)
+	at org.h2.value.ExtTypeInfoEnum.getValue(ExtTypeInfoEnum.java:175)
+	at org.h2.value.Value.convertToEnum(Value.java:2320)
+	at org.h2.value.Value.convertTo(Value.java:1200)
+	at org.h2.value.Value.convertForAssignTo(Value.java:1118)
+	at org.h2.table.Column.validateConvertUpdateSequence(Column.java:406)
+	at org.h2.table.Table.convertUpdateRow(Table.java:1005)
+	at org.h2.command.dml.SetClauseList.prepareUpdate(SetClauseList.java:149)
+	at org.h2.command.dml.Update.update(Update.java:82)
 	at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74)
 	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
 	at org.h2.command.Command.executeUpdate(Command.java:304)
 	at org.h2.command.Command.executeUpdate(Command.java:248)
 	at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213)
 	at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172)
-	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61)
-	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java)
-	at org.kreps.csvtoiotdb.DAO.CsvSettingsDAO.insertCsvSetting(CsvSettingsDAO.java:26)
-	at org.kreps.csvtoiotdb.MigrationInitializer.initialize(MigrationInitializer.java:23)
-	at org.kreps.csvtoiotdb.Main.main(Main.java:25)
-2024-10-10 17:29:23 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
-2024-10-10 17:29:27 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully
-2024-10-10 17:29:27 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
-2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
-2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
-2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
-2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1
-2024-10-10 17:29:28 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 23 ms
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
-2024-10-10 17:29:43 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
-2024-10-10 17:43:19 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
-2024-10-10 17:43:28 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully.
-2024-10-10 17:43:28 ERROR o.kreps.csvtoiotdb.H2DatabaseManager - Failed to start H2 Console: Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: bind" [90061-232]
-org.h2.jdbc.JdbcSQLNonTransientConnectionException: Exception opening port "8082" (port may be in use), cause: "java.net.BindException: Address already in use: bind" [90061-232]
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:690)
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
-	at org.h2.message.DbException.get(DbException.java:212)
-	at org.h2.util.NetUtils.createServerSocketTry(NetUtils.java:206)
-	at org.h2.util.NetUtils.createServerSocket(NetUtils.java:172)
-	at org.h2.server.web.WebServer.start(WebServer.java:412)
-	at org.h2.tools.Server.start(Server.java:551)
-	at org.kreps.csvtoiotdb.H2DatabaseManager.startWebConsole(H2DatabaseManager.java:98)
-	at org.kreps.csvtoiotdb.H2DatabaseManager.<init>(H2DatabaseManager.java:24)
-	at org.kreps.csvtoiotdb.H2DatabaseManager.initialize(H2DatabaseManager.java:31)
-	at org.kreps.csvtoiotdb.Main.main(Main.java:24)
-Caused by: java.net.BindException: Address already in use: bind
-	at java.base/sun.nio.ch.Net.bind0(Native Method)
-	at java.base/sun.nio.ch.Net.bind(Net.java:555)
-	at java.base/sun.nio.ch.Net.bind(Net.java:544)
-	at java.base/sun.nio.ch.NioSocketImpl.bind(NioSocketImpl.java:648)
-	at java.base/java.net.ServerSocket.bind(ServerSocket.java:388)
-	at java.base/java.net.ServerSocket.<init>(ServerSocket.java:274)
-	at java.base/java.net.ServerSocket.<init>(ServerSocket.java:167)
-	at org.h2.util.NetUtils.createServerSocketTry(NetUtils.java:202)
-	... 7 common frames omitted
-2024-10-10 17:43:37 ERROR org.kreps.csvtoiotdb.Main - Migration failed: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
-INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
-org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
-INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:520)
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
-	at org.h2.message.DbException.get(DbException.java:223)
-	at org.h2.message.DbException.get(DbException.java:199)
-	at org.h2.index.Index.getDuplicateKeyException(Index.java:523)
-	at org.h2.mvstore.db.MVSecondaryIndex.checkUnique(MVSecondaryIndex.java:223)
-	at org.h2.mvstore.db.MVSecondaryIndex.add(MVSecondaryIndex.java:184)
-	at org.h2.mvstore.db.MVTable.addRow(MVTable.java:517)
-	at org.h2.command.dml.Insert.insertRows(Insert.java:174)
-	at org.h2.command.dml.Insert.update(Insert.java:135)
-	at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74)
-	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
-	at org.h2.command.Command.executeUpdate(Command.java:304)
-	at org.h2.command.Command.executeUpdate(Command.java:248)
-	at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213)
-	at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172)
-	at org.kreps.csvtoiotdb.DAO.CsvSettingsDAO.insertCsvSetting(CsvSettingsDAO.java:26)
-	at org.kreps.csvtoiotdb.MigrationInitializer.initialize(MigrationInitializer.java:23)
-	at org.kreps.csvtoiotdb.Main.main(Main.java:27)
-2024-10-10 17:44:11 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
-2024-10-10 17:44:16 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully.
-2024-10-10 17:44:16 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
-2024-10-10 17:44:25 ERROR org.kreps.csvtoiotdb.Main - Migration failed: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
-INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
-org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation: "PUBLIC.CONSTRAINT_INDEX_E ON PUBLIC.CSV_SETTINGS(FILE_PATH NULLS FIRST) VALUES ( /* 1 */ './tests/standard_test.csv' )"; SQL statement:
-INSERT INTO csv_settings (file_path, status) VALUES (?, 'PENDING') [23505-232]
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:520)
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
-	at org.h2.message.DbException.get(DbException.java:223)
-	at org.h2.message.DbException.get(DbException.java:199)
-	at org.h2.index.Index.getDuplicateKeyException(Index.java:523)
-	at org.h2.mvstore.db.MVSecondaryIndex.checkUnique(MVSecondaryIndex.java:223)
-	at org.h2.mvstore.db.MVSecondaryIndex.add(MVSecondaryIndex.java:184)
-	at org.h2.mvstore.db.MVTable.addRow(MVTable.java:517)
-	at org.h2.command.dml.Insert.insertRows(Insert.java:174)
-	at org.h2.command.dml.Insert.update(Insert.java:135)
-	at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74)
-	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
-	at org.h2.command.Command.executeUpdate(Command.java:304)
-	at org.h2.command.Command.executeUpdate(Command.java:248)
-	at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213)
-	at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172)
-	at org.kreps.csvtoiotdb.DAO.CsvSettingsDAO.insertCsvSetting(CsvSettingsDAO.java:26)
-	at org.kreps.csvtoiotdb.MigrationInitializer.initialize(MigrationInitializer.java:23)
-	at org.kreps.csvtoiotdb.Main.main(Main.java:27)
-2024-10-10 17:44:25 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console stopped.
-2024-10-10 17:45:32 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
-2024-10-10 17:45:37 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialized successfully.
-2024-10-10 17:45:37 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
-2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
-2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
-2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
-2024-10-10 17:45:46 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 13 ms
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet after 1 attempts in 7 ms
-2024-10-10 17:46:05 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2
-2024-10-10 17:46:28 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
-2024-10-10 17:46:28 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+	at org.kreps.csvtoiotdb.DAO.JobsDAO.updateJobStatus(JobsDAO.java:53)
+	at org.kreps.csvtoiotdb.MigrateTask.run(MigrateTask.java:88)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2024-10-11 18:12:49 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+2024-10-11 18:14:07 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-11 18:14:12 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS csv_settings (id IDENTITY PRIMARY KEY, file_path VARCHAR(255) UNIQUE NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, total_rows INT DEFAULT 0, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, last_processed_timestamp TIMESTAMP, error_message VARCHAR(1024), has_failed_rows BOOLEAN DEFAULT FALSE)
+2024-10-11 18:14:12 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS migration_logs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, log_level ENUM('INFO', 'WARNING', 'ERROR') NOT NULL, message VARCHAR(2048), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:14:12 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS row_processing (csv_setting_id BIGINT NOT NULL, row_id VARCHAR(255) NOT NULL, row_number INT NOT NULL, status VARCHAR(50) NOT NULL, error_message VARCHAR(1024), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, retry_count INT DEFAULT 0, PRIMARY KEY (csv_setting_id, row_id), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:14:12 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS jobs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, end_time TIMESTAMP, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, error_message VARCHAR(1024), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:14:12 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialization completed.
+2024-10-11 18:14:12 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-11 18:14:17 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-11 18:14:17 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-11 18:14:17 INFO  org.kreps.csvtoiotdb.Converter - Converter initialized with 1 IoTDB devices and 1 CSV settings
+2024-10-11 18:14:17 INFO  org.kreps.csvtoiotdb.IoTDBWriter - IoTDBWriter initialized with maxRetries: 5, retryInterval: 1500ms, maxBackoffTime: 10000ms
+2024-10-11 18:14:17 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-11 18:14:17 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.MigrateTask - Updated existing job 1 for file: ./tests/standard_test.csv
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.CSVReader - Opened new CSV file: ./tests/standard_test.csv
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.CSVReader - Updated total rows for file: ./tests/standard_test.csv. Total rows: 10
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.Converter - Conversion completed. Processed 10 rows, skipped 0 rows, resulting in 3 device data entries
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Starting to write data for 3 devices from file: ./tests/standard_test.csv
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1. Rows: 3, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.B42b1 after 1 attempts in 14 ms. File: ./tests/standard_test.csv
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1. File: ./tests/standard_test.csv
+2024-10-11 18:14:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3. Rows: 3, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.C53c3 after 1 attempts in 11 ms. File: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3. File: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2. Rows: 4, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.A31a2 after 1 attempts in 11 ms. File: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2. File: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Finished writing data for all devices from file: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.CSVReader - CSVReader closed successfully
+2024-10-11 18:14:22 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+2024-10-11 18:16:06 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-11 18:16:10 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS csv_settings (id IDENTITY PRIMARY KEY, file_path VARCHAR(255) UNIQUE NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, total_rows INT DEFAULT 0, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, last_processed_timestamp TIMESTAMP, error_message VARCHAR(1024), has_failed_rows BOOLEAN DEFAULT FALSE)
+2024-10-11 18:16:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS migration_logs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, log_level ENUM('INFO', 'WARNING', 'ERROR') NOT NULL, message VARCHAR(2048), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:16:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS row_processing (csv_setting_id BIGINT NOT NULL, row_id VARCHAR(255) NOT NULL, row_number INT NOT NULL, status VARCHAR(50) NOT NULL, error_message VARCHAR(1024), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, retry_count INT DEFAULT 0, PRIMARY KEY (csv_setting_id, row_id), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:16:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS jobs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, end_time TIMESTAMP, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, error_message VARCHAR(1024), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:16:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialization completed.
+2024-10-11 18:16:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-11 18:16:15 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-11 18:16:15 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-11 18:16:15 INFO  org.kreps.csvtoiotdb.Converter - Converter initialized with 1 IoTDB devices and 1 CSV settings
+2024-10-11 18:16:15 INFO  org.kreps.csvtoiotdb.IoTDBWriter - IoTDBWriter initialized with maxRetries: 5, retryInterval: 1500ms, maxBackoffTime: 10000ms
+2024-10-11 18:16:15 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-11 18:16:15 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.MigrateTask - Updated existing job 1 for file: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.CSVReader - Opened new CSV file: ./tests/standard_test.csv
+2024-10-11 18:16:20 WARN  org.kreps.csvtoiotdb.CSVReader - Skipping invalid row 7: Error parsing row: Error parsing column Timestamp: Error occurred while parsing value 'ASDASDAS' for type 'TIME'.. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 WARN  org.kreps.csvtoiotdb.CSVReader - Skipping invalid row 8: Error parsing row: Error parsing column Timestamp: Error occurred while parsing value 'null' for type 'TIME'.. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 WARN  org.kreps.csvtoiotdb.CSVReader - Skipping invalid row 9: Error parsing row: Error parsing column Timestamp: Error occurred while parsing value '16257888001231231231231231232133123123123123' for type 'TIME'.. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 WARN  org.kreps.csvtoiotdb.CSVReader - Skipping invalid row 10: Error parsing row: Error parsing column Timestamp: Error occurred while parsing value 'salam' for type 'TIME'.. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.CSVReader - Updated total rows for file: ./tests/standard_test.csv. Total rows: 10
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.Converter - Conversion completed. Processed 6 rows, skipped 0 rows, resulting in 3 device data entries
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Starting to write data for 3 devices from file: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1. Rows: 2, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.B42b1 after 1 attempts in 13 ms. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3. Rows: 2, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.C53c3 after 1 attempts in 7 ms. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2. Rows: 2, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.A31a2 after 1 attempts in 7 ms. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2. File: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Finished writing data for all devices from file: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.CSVReader - CSVReader closed successfully
+2024-10-11 18:16:20 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.
+2024-10-11 18:17:21 INFO  org.kreps.csvtoiotdb.Main - ThreadManager shutdown initiated.
+2024-10-11 18:17:21 INFO  org.kreps.csvtoiotdb.Main - IoTDBClientManager closed.
+2024-10-11 18:17:21 INFO  org.kreps.csvtoiotdb.Main - CSV to IoTDB migration completed successfully.
+2024-10-11 18:17:21 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console stopped.
+2024-10-11 18:18:07 INFO  org.kreps.csvtoiotdb.Main - Configuration validation passed.
+2024-10-11 18:18:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS csv_settings (id IDENTITY PRIMARY KEY, file_path VARCHAR(255) UNIQUE NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, total_rows INT DEFAULT 0, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, last_processed_timestamp TIMESTAMP, error_message VARCHAR(1024), has_failed_rows BOOLEAN DEFAULT FALSE)
+2024-10-11 18:18:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS migration_logs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, log_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, log_level ENUM('INFO', 'WARNING', 'ERROR') NOT NULL, message VARCHAR(2048), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:18:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS row_processing (csv_setting_id BIGINT NOT NULL, row_id VARCHAR(255) NOT NULL, row_number INT NOT NULL, status VARCHAR(50) NOT NULL, error_message VARCHAR(1024), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, retry_count INT DEFAULT 0, PRIMARY KEY (csv_setting_id, row_id), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:18:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Successfully executed SQL: CREATE TABLE IF NOT EXISTS jobs (id IDENTITY PRIMARY KEY, csv_setting_id BIGINT NOT NULL, status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') NOT NULL, start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, end_time TIMESTAMP, processed_rows INT DEFAULT 0, failed_rows INT DEFAULT 0, error_message VARCHAR(1024), FOREIGN KEY (csv_setting_id) REFERENCES csv_settings(id))
+2024-10-11 18:18:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - Database tables initialization completed.
+2024-10-11 18:18:11 INFO  o.kreps.csvtoiotdb.H2DatabaseManager - H2 Console started on port: 8082
+2024-10-11 18:18:16 INFO  org.kreps.csvtoiotdb.Main - Migration state initialized.
+2024-10-11 18:18:16 INFO  org.kreps.csvtoiotdb.Main - Schema validation completed.
+2024-10-11 18:18:16 INFO  org.kreps.csvtoiotdb.Converter - Converter initialized with 1 IoTDB devices and 1 CSV settings
+2024-10-11 18:18:16 INFO  org.kreps.csvtoiotdb.IoTDBWriter - IoTDBWriter initialized with maxRetries: 5, retryInterval: 1500ms, maxBackoffTime: 10000ms
+2024-10-11 18:18:16 INFO  org.kreps.csvtoiotdb.Main - IoTDBWriter initialized.
+2024-10-11 18:18:16 INFO  org.kreps.csvtoiotdb.Main - Submitted migration task 1
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.MigrateTask - Updated existing job 2 for file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.CSVReader - Opened new CSV file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.CSVReader - Processing only failed rows for file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.CSVReader - Processing only failed rows for file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.CSVReader - Updated total rows for file: ./tests/standard_test.csv. Total rows: 10
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.Converter - Conversion completed. Processed 4 rows, skipped 0 rows, resulting in 3 device data entries
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Starting to write data for 3 devices from file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.B42b1. Rows: 1, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.B42b1 after 1 attempts in 12 ms. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.B42b1. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.C53c3. Rows: 1, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.C53c3 after 1 attempts in 7 ms. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.C53c3. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Attempting to write tablet for device: root.powerplant.A31a2. Rows: 2, Aligned: true. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully inserted tablet for device: root.powerplant.A31a2 after 1 attempts in 9 ms. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Successfully wrote batch for path: root.powerplant.A31a2. File: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.IoTDBWriter - Finished writing data for all devices from file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.MigrateTask - Migration completed for file: ./tests/standard_test.csv
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.CSVReader - CSVReader closed successfully
+2024-10-11 18:18:21 INFO  org.kreps.csvtoiotdb.MigrateTask - No more CSV settings to process. Thread exiting.

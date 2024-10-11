@@ -3,111 +3,166 @@ package org.kreps.csvtoiotdb;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.kreps.csvtoiotdb.DAO.CsvSettingsDAO;
+import org.kreps.csvtoiotdb.DAO.RowProcessingDAO;
+import org.kreps.csvtoiotdb.DAO.RowProcessingStatus;
 import org.kreps.csvtoiotdb.configs.csv.CsvColumn;
 import org.kreps.csvtoiotdb.configs.csv.CsvSettings;
-
-import com.univocity.parsers.csv.CsvParser;
-import com.univocity.parsers.csv.CsvParserSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.univocity.parsers.csv.CsvParser;
+import com.univocity.parsers.csv.CsvParserSettings;
+
 /**
- * Reads CSV files in batches and parses them into maps of joinKey to values.
+ * Reads CSV files and processes them in batches.
  */
 public class CSVReader implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(CSVReader.class);
 
     private final CsvSettings csvSettings;
     private final int batchSize;
-    private final CsvParser parser;
     private final Iterator<String> filePathIterator;
+    private final CsvParser parser;
+    private final Map<String, Integer> headerMap;
     private Reader currentReader;
     private boolean isParsing;
-    private final Map<String, Integer> headerMap;
     private final AtomicBoolean isClosed;
+    private String currentFilePath;
+    private int currentRowNumber;
+    private long currentCsvSettingId;
+    private int totalRows;
 
-    /**
-     * Constructs a CSVReader instance.
-     *
-     * @param csvSettings The configuration settings for CSV parsing.
-     * @param batchSize   The number of rows to read in each batch.
-     * @throws IOException If an I/O error occurs.
-     */
-    public CSVReader(CsvSettings csvSettings, int batchSize) throws IOException {
-        this.csvSettings = Objects.requireNonNull(csvSettings, "CSV settings cannot be null.");
+    private final RowProcessingDAO rowProcessingDAO;
+    private final CsvSettingsDAO csvSettingsDAO;
+    private final H2DatabaseManager dbManager;
+
+    private Set<Integer> failedRowNumbers;
+    private boolean processOnlyFailedRows;
+
+    public CSVReader(CsvSettings csvSettings, int batchSize, H2DatabaseManager dbManager)
+            throws IOException, SQLException {
+        this.csvSettings = csvSettings;
         this.batchSize = batchSize;
-
-        CsvParserSettings parserSettings = createCsvParserSettings();
-        this.parser = new CsvParser(parserSettings);
         this.filePathIterator = csvSettings.getFilePaths().iterator();
+        this.parser = new CsvParser(createCsvParserSettings());
         this.headerMap = new HashMap<>();
-        this.isClosed = new AtomicBoolean(false);
         this.isParsing = false;
+        this.isClosed = new AtomicBoolean(false);
+        this.rowProcessingDAO = new RowProcessingDAO();
+        this.csvSettingsDAO = new CsvSettingsDAO();
+        this.dbManager = dbManager;
+        this.totalRows = 0;
+        this.failedRowNumbers = new HashSet<>();
+        this.processOnlyFailedRows = false;
     }
 
     /**
-     * Reads the next batch of rows from the CSV files.
+     * Reads a batch of rows from the CSV files.
      *
-     * @return A list of maps where each map represents a row with joinKey to value
-     *         mappings,
-     *         or null if no more data is available.
-     * @throws IOException If an I/O error occurs.
+     * @return A list of parsed rows or null if no more rows are available.
+     * @throws IOException  If an I/O error occurs.
+     * @throws SQLException If a database error occurs.
      */
-    public List<Map<String, Object>> readBatch() throws IOException {
+    public List<Map<String, Object>> readBatch() throws IOException, SQLException {
         ensureNotClosed();
 
         List<Map<String, Object>> batch = new ArrayList<>(this.batchSize);
 
-        while (batch.size() < this.batchSize) {
-            if (!isParsing) {
-                if (!filePathIterator.hasNext()) {
-                    return batch.isEmpty() ? null : batch;
+        try (Connection conn = dbManager.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                while (batch.size() < this.batchSize) {
+                    if (!isParsing) {
+                        if (!filePathIterator.hasNext()) {
+                            return batch.isEmpty() ? null : batch;
+                        }
+                        openNextFile(conn);
+                    }
+
+                    parseRows(batch, conn);
+
+                    if (!isParsing) {
+                        break;
+                    }
                 }
-                openNextFile();
-            }
-
-            parseRows(batch);
-
-            if (!isParsing) { // Parsing stopped, no more rows to parse
-                break;
+                conn.commit();
+            } catch (IOException | SQLException e) {
+                conn.rollback();
+                logger.error("Error reading batch. File: {}, Last processed row: {}, Error: {}",
+                        currentFilePath, currentRowNumber, e.getMessage(), e);
+                throw new IOException("Error reading batch", e);
             }
         }
 
         return batch.isEmpty() ? null : batch;
     }
 
-    /**
-     * Opens the next file and prepares the parser for reading.
-     *
-     * @throws IOException If an I/O error occurs.
-     */
-    private synchronized void openNextFile() throws IOException {
+    private synchronized void openNextFile(Connection conn) throws IOException, SQLException {
         if (isClosed.get()) {
             throw new IllegalStateException("CSVReader is closed and cannot open new files.");
         }
 
-        closeCurrentReader(); // Ensure the current reader is closed before opening a new one
+        closeCurrentReader();
 
-        String nextFile = filePathIterator.next();
+        if (!filePathIterator.hasNext()) {
+            isParsing = false;
+            updateTotalRowsForCurrentFile(conn);
+            return;
+        }
+
+        currentFilePath = filePathIterator.next();
+        currentRowNumber = 0;
         try {
-            currentReader = new FileReader(nextFile);
+            currentReader = new FileReader(currentFilePath);
             parser.beginParsing(currentReader);
             String[] headers = parser.getContext().headers();
             updateHeaderMap(headers);
             isParsing = true;
-            logger.info("Opened new CSV file: {}", nextFile);
-        } catch (IOException e) {
-            logger.error("Failed to open CSV file: {}", nextFile, e);
-            closeCurrentReader(); // Ensure the reader is closed in case of an error
-            isParsing = false;
+            logger.info("Opened new CSV file: {}", currentFilePath);
+
+            Optional<Long> optionalId = csvSettingsDAO.getCsvSettingId(currentFilePath);
+            currentCsvSettingId = optionalId
+                    .orElseThrow(() -> new IllegalStateException("CSV setting not found for file: " + currentFilePath));
+
+            boolean hasFailedRows = csvSettingsDAO.hasFailedRows(currentCsvSettingId);
+            if (hasFailedRows) {
+                failedRowNumbers = rowProcessingDAO.getFailedRowNumbers(currentCsvSettingId, conn);
+                processOnlyFailedRows = !failedRowNumbers.isEmpty();
+                if (processOnlyFailedRows) {
+                    logger.info("Processing only failed rows for file: {}", currentFilePath);
+                }
+            } else {
+                processOnlyFailedRows = false;
+                failedRowNumbers.clear();
+            }
+
+            // Retrieve failed row numbers for the current CSV setting
+            failedRowNumbers = rowProcessingDAO.getFailedRowNumbers(currentCsvSettingId, conn);
+            processOnlyFailedRows = !failedRowNumbers.isEmpty();
+
+            if (processOnlyFailedRows) {
+                logger.info("Processing only failed rows for file: {}", currentFilePath);
+            }
+        } catch (IOException | SQLException e) {
+            logger.error("Failed to open CSV file: {}. Error: {}", currentFilePath, e.getMessage(), e);
+            closeCurrentReader();
             throw e;
         }
     }
@@ -116,21 +171,41 @@ public class CSVReader implements AutoCloseable {
      * Parses rows from the current CSV file and adds them to the batch.
      *
      * @param batch The batch to add the parsed rows to.
-     * @throws IOException If an I/O error occurs.
+     * @throws IOException  If an I/O error occurs.
+     * @throws SQLException If a database error occurs.
      */
-    private void parseRows(List<Map<String, Object>> batch) throws IOException {
+    private void parseRows(List<Map<String, Object>> batch, Connection conn) throws IOException, SQLException {
         String[] row = null;
 
         while (batch.size() < this.batchSize && (row = parser.parseNext()) != null) {
+            currentRowNumber++;
+            totalRows++;
+
+            if (processOnlyFailedRows && !failedRowNumbers.contains(currentRowNumber)) {
+                continue; // Skip rows that are not in the failed rows set
+            }
+
             try {
+                String rowId = generateRowId(currentCsvSettingId, currentFilePath, currentRowNumber);
                 Map<String, Object> parsedRow = parseRow(row);
+                parsedRow.put("row_id", rowId);
+                parsedRow.put("row_number", currentRowNumber);
                 batch.add(parsedRow);
+
+                RowProcessingStatus status = processOnlyFailedRows ? RowProcessingStatus.RETRY
+                        : RowProcessingStatus.PENDING;
+                rowProcessingDAO.insertOrUpdateRowProcessing(currentCsvSettingId, rowId, currentRowNumber,
+                        status, conn);
             } catch (IllegalArgumentException e) {
-                logger.warn("Skipping invalid row: {}", e.getMessage());
+                logger.warn("Skipping invalid row {}: {}. File: {}", currentRowNumber, e.getMessage(), currentFilePath);
+                String rowId = generateRowId(currentCsvSettingId, currentFilePath, currentRowNumber);
+                rowProcessingDAO.insertOrUpdateRowProcessing(currentCsvSettingId, rowId, currentRowNumber,
+                        RowProcessingStatus.FAILED, conn);
             }
         }
 
-        if (row == null) { // No more rows in current file
+        if (row == null) {
+            updateTotalRowsForCurrentFile(conn);
             stopParsingAndClose();
         }
     }
@@ -144,15 +219,17 @@ public class CSVReader implements AutoCloseable {
     private Map<String, Object> parseRow(String[] row) {
         Map<String, Object> parsedRow = new HashMap<>();
 
-        // Add timestamp first
-        CsvColumn timestampColumn = csvSettings.getTimestampColumn();
-        Object parsedTimestamp = parseColumnValue(timestampColumn, row);
-        parsedRow.put("timestamp", parsedTimestamp);
+        try {
+            CsvColumn timestampColumn = csvSettings.getTimestampColumn();
+            Object parsedTimestamp = parseColumnValue(timestampColumn, row);
+            parsedRow.put("timestamp", parsedTimestamp);
 
-        // Add other columns
-        for (CsvColumn column : csvSettings.getColumns()) {
-            Object parsedValue = parseColumnValue(column, row);
-            parsedRow.put(column.getJoinKey(), parsedValue);
+            for (CsvColumn column : csvSettings.getColumns()) {
+                Object parsedValue = parseColumnValue(column, row);
+                parsedRow.put(column.getJoinKey(), parsedValue);
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error parsing row: " + e.getMessage(), e);
         }
 
         return parsedRow;
@@ -170,7 +247,11 @@ public class CSVReader implements AutoCloseable {
         if (columnIndex == null || columnIndex >= row.length) {
             throw new IllegalArgumentException("Missing column: " + column.getName());
         }
-        return column.parseValue(row[columnIndex]);
+        try {
+            return column.parseValue(row[columnIndex]);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error parsing column " + column.getName() + ": " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -249,5 +330,24 @@ public class CSVReader implements AutoCloseable {
         settings.getFormat().setQuote(csvSettings.getEscapeCharacter().charAt(0));
         settings.setHeaderExtractionEnabled(true);
         return settings;
+    }
+
+    private String generateRowId(long csvSettingId, String filePath, long rowNumber) {
+        String rawId = csvSettingId + ":" + filePath + ":" + rowNumber;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawId.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Error generating row ID", e);
+            // Fallback to a simple concatenation if hashing fails
+            return rawId.replaceAll("[^a-zA-Z0-9]", "_");
+        }
+    }
+
+    private void updateTotalRowsForCurrentFile(Connection conn) throws SQLException {
+        csvSettingsDAO.updateTotalRows(currentCsvSettingId, totalRows, conn);
+        logger.info("Updated total rows for file: {}. Total rows: {}", currentFilePath, totalRows);
+        totalRows = 0; // Reset for the next file
     }
 }
